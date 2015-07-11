@@ -28,6 +28,8 @@
 #include "mdss_dsi.h"
 #include "mdss_dba_utils.h"
 
+#include "mdss_livedisplay.h"
+
 #define MDSS_PANEL_DEFAULT_VER 0xffffffffffffffff
 #define MDSS_PANEL_UNKNOWN_NAME "unknown"
 #define DT_CMD_HDR 6
@@ -902,6 +904,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		pdata->panel_info.panel_dead = true;
 	} else
 		panel_recovery_retry = 0;
+
+	if (pdata->event_handler)
+		pdata->event_handler(pdata, MDSS_EVENT_UPDATE_LIVEDISPLAY,
+				(void *)(unsigned long) MODE_UPDATE_ALL);
+
 end:
 	if (pinfo->forced_tx_mode_ftr_enabled)
 		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
@@ -1030,7 +1037,7 @@ static void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
 }
 
 
-static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
+int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key)
 {
 	const char *data;
@@ -2876,6 +2883,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			MSM_DBA_CHIP_NAME_MAX_LEN);
 	}
 
+	mdss_livedisplay_parse_dt(np, pinfo);
 	return 0;
 
 error:
