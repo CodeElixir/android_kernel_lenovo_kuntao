@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,18 +20,10 @@
 #include <linux/types.h>
 #include <linux/debugfs.h>
 
-#define KHZ_TO_HZ 1000
-
 /* panel id type */
 struct panel_id {
 	u16 id;
 	u16 type;
-};
-
-enum fps_resolution {
-	FPS_RESOLUTION_DEFAULT,
-	FPS_RESOLUTION_HZ,
-	FPS_RESOLUTION_KHZ,
 };
 
 #define DEFAULT_FRAME_RATE	60
@@ -45,6 +37,45 @@ enum fps_resolution {
 #define SIM_PANEL	"sim"
 #define SIM_SW_TE_PANEL	"sim-swte"
 #define SIM_HW_TE_PANEL	"sim-hwte"
+
+enum hbm_state {
+	HBM_OFF_STATE = 0,
+	HBM_ON_STATE,
+	HBM_STATE_NUM
+};
+
+enum acl_state {
+	ACL_OFF_STATE = 0,
+	ACL_ON_STATE,
+	ACL_STATE_NUM
+};
+
+enum seed_state {
+	SEED_OFF_STATE = 0,
+	SEED_ON_STATE,
+	SEED_STATE_NUM
+};
+
+enum panel_param_id {
+	PARAM_HBM_ID = 0,
+	PARAM_ACL_ID,
+	PARAM_SEED_ID,
+	PARAM_ID_NUM
+};
+
+struct panel_param_val_map {
+	char *name;
+	char *prop;
+};
+
+struct panel_param {
+	const char *param_name;
+	const struct panel_param_val_map *val_map;
+	const u16 val_max;
+	const u16 default_value;
+	u16 value;
+	bool is_supported;
+};
 
 /* panel type list */
 #define NO_PANEL		0xffff	/* No Panel */
@@ -115,11 +146,6 @@ enum {
 	MDSS_PANEL_POWER_ON,
 	MDSS_PANEL_POWER_LP1,
 	MDSS_PANEL_POWER_LP2,
-};
-
-enum {
-	MDSS_PANEL_LOW_PERSIST_MODE_OFF = 0,
-	MDSS_PANEL_LOW_PERSIST_MODE_ON,
 };
 
 enum {
@@ -240,6 +266,7 @@ struct mdss_intf_recovery {
  *				the panel.
  * @MDSS_EVENT_PANEL_TIMING_SWITCH: Panel timing switch is requested.
  *				Argument provided is new panel timing.
+ * @MDSS_EVENT_ENABLE_TE: Change TE state, used for factory testing only
  */
 enum mdss_intf_events {
 	MDSS_EVENT_RESET = 1,
@@ -270,7 +297,7 @@ enum mdss_intf_events {
 	MDSS_EVENT_DSI_RECONFIG_CMD,
 	MDSS_EVENT_DSI_RESET_WRITE_PTR,
 	MDSS_EVENT_PANEL_TIMING_SWITCH,
-	MDSS_EVENT_UPDATE_PARAMS,
+	MDSS_EVENT_ENABLE_TE,
 	MDSS_EVENT_MAX,
 };
 
@@ -396,7 +423,6 @@ struct mipi_panel_info {
 	char traffic_mode;
 	char frame_rate;
 	/* command mode */
-	char frame_rate_idle;
 	char interleave_max;
 	char insert_dcs_cmd;
 	char wr_mem_continue;
@@ -421,7 +447,6 @@ struct mipi_panel_info {
 	char lp11_init;
 	u32  init_delay;
 	u32  post_init_delay;
-	u8 default_lanes;
 };
 
 struct edp_panel_info {
@@ -715,6 +740,9 @@ struct mdss_panel_info {
 	void *cec_data;
 
 	char panel_name[MDSS_MAX_PANEL_LEN];
+	char panel_family_name[MDSS_MAX_PANEL_LEN];
+	u32 panel_ver;
+	char panel_supplier[8];
 	struct mdss_mdp_pp_tear_check te;
 
 	/*
@@ -748,11 +776,15 @@ struct mdss_panel_info {
 	/* debugfs structure for the panel */
 	struct mdss_panel_debugfs_info *debugfs_info;
 
-	/* persistence mode on/off */
-	bool persist_mode;
-
 	/* HDR properties of display panel*/
 	struct mdss_panel_hdr_properties hdr_properties;
+
+	u32 disp_on_check_val;
+	bool no_panel_read_support;
+	struct panel_param *param[PARAM_ID_NUM];
+	u32 forced_tx_mode_ftr_enabled;
+	u32 forced_tx_mode_state;
+	bool hbm_restore;
 };
 
 struct mdss_panel_timing {
@@ -792,7 +824,7 @@ struct mdss_panel_timing {
 struct mdss_panel_data {
 	struct mdss_panel_info panel_info;
 	void (*set_backlight) (struct mdss_panel_data *pdata, u32 bl_level);
-	int (*apply_display_setting)(struct mdss_panel_data *pdata, u32 mode);
+	int (*set_param)(struct mdss_panel_data *pdata, u16 id, u16 value);
 	unsigned char *mmss_cc_base;
 
 	/**
@@ -809,7 +841,6 @@ struct mdss_panel_data {
 	 */
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
 	struct device_node *(*get_fb_node)(struct platform_device *pdev);
-	bool (*get_idle)(struct mdss_panel_data *pdata);
 
 	struct list_head timings_list;
 	struct mdss_panel_timing *current_timing;
@@ -835,31 +866,18 @@ struct mdss_panel_debugfs_info {
  * mdss_get_panel_framerate() - get panel frame rate based on panel information
  * @panel_info:	Pointer to panel info containing all panel information
  */
-static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info,
-					   u32 flags)
+static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
 {
 	u32 frame_rate, pixel_total;
 	u64 rate;
-	struct mdss_panel_data *panel_data =
-			container_of(panel_info, typeof(*panel_data),
-					panel_info);
-	bool idle = false;
 
-	if (panel_info == NULL) {
-		frame_rate = DEFAULT_FRAME_RATE;
-		goto end;
-	}
+	if (panel_info == NULL)
+		return DEFAULT_FRAME_RATE;
 
 	switch (panel_info->type) {
 	case MIPI_VIDEO_PANEL:
 	case MIPI_CMD_PANEL:
 		frame_rate = panel_info->mipi.frame_rate;
-		if (panel_data->get_idle)
-			idle = panel_data->get_idle(panel_data);
-		if (idle)
-			frame_rate = panel_info->mipi.frame_rate_idle;
-		else
-			frame_rate = panel_info->mipi.frame_rate;
 		break;
 	case EDP_PANEL:
 		frame_rate = panel_info->edp.frame_rate;
@@ -869,7 +887,9 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info,
 		break;
 	case DTV_PANEL:
 		if (panel_info->dynamic_fps) {
-			frame_rate = panel_info->lcdc.frame_rate;
+			frame_rate = panel_info->lcdc.frame_rate / 1000;
+			if (panel_info->lcdc.frame_rate % 1000)
+				frame_rate += 1;
 			break;
 		}
 	default:
@@ -882,7 +902,7 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info,
 			  panel_info->lcdc.v_pulse_width +
 			  panel_info->yres);
 		if (pixel_total) {
-			rate = panel_info->clk_rate * KHZ_TO_HZ;
+			rate = panel_info->clk_rate;
 			do_div(rate, pixel_total);
 			frame_rate = (u32)rate;
 		} else {
@@ -890,15 +910,6 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info,
 		}
 		break;
 	}
-end:
-	if (flags == FPS_RESOLUTION_KHZ) {
-		if (!(frame_rate / KHZ_TO_HZ))
-			frame_rate *= KHZ_TO_HZ;
-	} else if (flags == FPS_RESOLUTION_HZ) {
-		if (frame_rate / KHZ_TO_HZ)
-			frame_rate /= KHZ_TO_HZ;
-	}
-
 	return frame_rate;
 }
 
@@ -1202,4 +1213,15 @@ static inline struct mdss_panel_timing *mdss_panel_get_timing_by_name(
 		struct mdss_panel_data *pdata,
 		const char *name) { return NULL; };
 #endif
+
+static inline bool mdss_panel_param_is_supported(struct mdss_panel_info *p,
+	u16 id)
+{
+	if (id < PARAM_ID_NUM && p && p->param[id] &&
+		p->param[id]->is_supported)
+		return true;
+
+	return false;
+};
+
 #endif /* MDSS_PANEL_H */
