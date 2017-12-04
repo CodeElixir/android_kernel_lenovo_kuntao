@@ -195,6 +195,7 @@ static void put_pages(struct drm_gem_object *obj)
 	if (msm_obj->pages) {
 		if (use_pages(obj))
 			msm_drm_free_buf(obj);
+
 		else {
 			drm_mm_remove_node(msm_obj->vram_node);
 			drm_free_large(msm_obj->pages);
