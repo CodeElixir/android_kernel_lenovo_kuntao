@@ -27,7 +27,6 @@
 
 #include <linux/usb/composite.h>
 #include <linux/usb/functionfs.h>
-#include <linux/freezer.h>
 
 #include <linux/aio.h>
 #include <linux/mmu_context.h>
@@ -751,7 +750,7 @@ retry:
 		 * and wait for next epfile open to happen
 		 */
 		if (!atomic_read(&epfile->error)) {
-			ret = wait_event_freezable(epfile->wait,
+			ret = wait_event_interruptible(epfile->wait,
 					(ep = epfile->ep));
 			if (ret < 0)
 				goto error;
@@ -2885,8 +2884,8 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	struct ffs_data *ffs = func->ffs;
 
 	const int full = !!func->ffs->fs_descs_count;
-	const int high = func->ffs->hs_descs_count;
-	const int super = func->ffs->ss_descs_count;
+	const int high = !!func->ffs->hs_descs_count;
+	const int super = !!func->ffs->ss_descs_count;
 
 	int fs_len, hs_len, ss_len, ret, i;
 
