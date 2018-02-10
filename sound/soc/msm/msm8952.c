@@ -1716,15 +1716,16 @@ static int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		pr_info("failed to enable codec gpios\n");
 		goto err;
 	}	
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		pr_info("%s: set fmt cpu dai failed\n", __func__);
+	if (atomic_inc_return(&quin_mi2s_clk_ref) == 1) {
+		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
+		if (ret < 0)
+			pr_err("%s: set fmt cpu dai failed\n", __func__);
 	}
 	return ret;
 err:
 	ret = msm_mi2s_sclk_ctl(substream, false);
 	if (ret < 0)
-		pr_info("failed to disable sclk\n");
+		pr_err("failed to disable sclk\n");
 	return ret;
 }
 
