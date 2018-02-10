@@ -69,7 +69,7 @@ source "drivers/media/platform/msm/camera_v2/Kconfig"
 endif # MSMB_CAMERA
 
 if LENOVO_DIR_CAMERA
-source "../vendor/lenovo/camera/camera-driver/Kconfig"
+source "drivers/media/platform/msm/camera/camera-driver/Kconfig""
 endif # LENOVO_DIR_CAMERA
 
 source "drivers/media/platform/msm/ais/Kconfig"
