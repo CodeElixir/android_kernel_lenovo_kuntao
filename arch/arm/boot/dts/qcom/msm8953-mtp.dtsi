@@ -285,8 +285,20 @@
 	qpnp,swire-control;
 };
 
+<<<<<<< HEAD
 &ibb_regulator {
 	qcom,qpnp-ibb-discharge-resistor = <32>;
+=======
+&labibb {
+	status = "ok";
+	qpnp,qpnp-labibb-mode = "lcd";
+};
+
+&dsi_truly_1080_vid {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	qcom,mdss-dsi-pan-enable-dynamic-fps;
+	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_clk_mode";
+>>>>>>> parent of 0f661cf... ARM: dts: msm: add support of PMI8937/PMI8940 for MSM8953
 };
 
 &pmi8950_mpps {
@@ -379,13 +391,19 @@
 /{
 	mtp_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
+<<<<<<< HEAD
 		#include "batterydata-kuntao-5000mah.dtsi"
 		#include "batterydata-kuntao-2-5000mah.dtsi"
+=======
+		#include "batterydata-itech-3000mah.dtsi"
+		#include "batterydata-ascent-3450mAh.dtsi"
+>>>>>>> parent of 0f661cf... ARM: dts: msm: add support of PMI8937/PMI8940 for MSM8953
 	};
 };
 
 &pmi8950_fg {
 	qcom,battery-data = <&mtp_batterydata>;
+<<<<<<< HEAD
 	qcom,fg-vadc = <&pmi8950_vadc>;
 };
 /*
@@ -393,6 +411,10 @@
 	vbus_dwc3-supply = <&bq2589x_otg_supply>;
 };
 */
+=======
+};
+
+>>>>>>> parent of 0f661cf... ARM: dts: msm: add support of PMI8937/PMI8940 for MSM8953
 &pmi8950_charger {
 	qcom,battery-data = <&mtp_batterydata>;
 	qcom,chg-led-sw-controls;
