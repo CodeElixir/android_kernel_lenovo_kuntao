@@ -284,8 +284,8 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_WIRELESS,	/* Accessory Charger Adapters */
 	POWER_SUPPLY_TYPE_USB_FLOAT,	/* Floating charger */
 	POWER_SUPPLY_TYPE_BMS,		/* Battery Monitor System */
+	POWER_SUPPLY_TYPE_USB_PARALLEL,	/* USB Parallel Path */
 	POWER_SUPPLY_TYPE_PARALLEL,	/* Parallel Path */
-	POWER_SUPPLY_TYPE_USB_PARALLEL,
 	POWER_SUPPLY_TYPE_MAIN,		/* Main Path */
 	POWER_SUPPLY_TYPE_WIPOWER,	/* Wipower */
 	POWER_SUPPLY_TYPE_TYPEC,	/* Type-C */
