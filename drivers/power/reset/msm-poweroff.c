@@ -152,6 +152,7 @@ static bool get_dload_mode(void)
 	return dload_mode_enabled;
 }
 
+#if 0
 static void enable_emergency_dload_mode(void)
 {
 	int ret;
@@ -176,6 +177,7 @@ static void enable_emergency_dload_mode(void)
 	if (ret)
 		pr_err("Failed to set secure EDLOAD mode: %d\n", ret);
 }
+#endif
 
 static int dload_set(const char *val, struct kernel_param *kp)
 {
@@ -264,6 +266,7 @@ static void halt_spmi_pmic_arbiter(void)
 	}
 }
 
+#if 0
 static bool allow_to_edl(void)
 {
 	struct device_node *np = of_find_node_by_path("/chosen");
@@ -276,6 +279,7 @@ static bool allow_to_edl(void)
 	else
 		return false;
 }
+#endif
 
 static void msm_restart_prepare(const char *cmd)
 {
@@ -381,14 +385,20 @@ static void msm_restart_prepare(const char *cmd)
 			if (!ret)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);
+#if 0
 		} else if (!strncmp(cmd, "edl", 3) && allow_to_edl()) {
 			enable_emergency_dload_mode();
+#endif
 		/*lenovo-sw jixj 2015.3.13 add begin*/
 		} else if (!strncmp(cmd, "testmode", 8)) {
 			__raw_writel(0x77665504, restart_reason);
 		} else if (!strncmp(cmd, "dloadmode", 9)) {
 			set_dload_mode(1);
 		/*lenovo-sw jixj 2015.3.13 add end*/
+#if 0
+		} else if (!strncmp(cmd, "edl", 3)) {
+			enable_emergency_dload_mode();
+#endif
 		} else {
 			__raw_writel(0x77665501, restart_reason);
 		}
